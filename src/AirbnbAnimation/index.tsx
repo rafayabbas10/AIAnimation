@@ -11,9 +11,9 @@ export const AirbnbAnimation: React.FC = () => {
     // Scene durations (in seconds converted to frames)
     const scene1Duration = 3 * fps; // 0-3s
     const scene2Duration = 3 * fps; // 3-6s
-    const scene3Duration = 75; // 360-435
-    const scene4Duration = 2 * fps; // 435-555
-    const scene5Duration = 3 * fps; // 555-735
+    const scene3Duration = 150; // Extended for smoother carousel animation
+    const scene4Duration = 4 * fps; // Extended for slower UI tag animations
+    const scene5Duration = 3 * fps; // Final outro
 
     return (
         <AbsoluteFill style={{ backgroundColor: "#FFFFFF" }}>

@@ -13,7 +13,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="AirbnbAnimation"
         component={AirbnbAnimation}
-        durationInFrames={735} // Updated to match trimmed scenes
+        durationInFrames={930} // Updated for extended scene 3 and scene 4
         fps={60}
         width={1920}
         height={1080}

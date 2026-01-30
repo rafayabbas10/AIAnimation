@@ -65,20 +65,41 @@ export const Scene3UICarousel: React.FC = () => {
 
     const sceneOpacity = entryFade * exitFade;
 
-    // Render carousel cards
+    // Calculate looping carousel positions
+    const cardSpacing = 400;
+    const totalCarouselWidth = categories.length * cardSpacing;
+
+    // Slower, smoother scroll animation with better easing
+    // Using ease-in-out for smooth start and end
+    const scrollSpeed = 0.35; // Much slower scroll
+    const totalTravel = totalCarouselWidth * scrollSpeed;
+
+    // Smooth ease-in-out animation curve for professional feel
+    const scrollProgress = interpolate(
+        frame,
+        [0, 30, durationInFrames - 30, durationInFrames],
+        [0, totalTravel * 0.1, totalTravel * 0.9, totalTravel],
+        {
+            easing: Easing.bezier(0.4, 0, 0.2, 1), // Material Design ease-in-out
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        }
+    );
+
+    // Render carousel cards with looping
     const renderCard = (card: CategoryCard, index: number) => {
-        const cardSpacing = 400;
         const basePosition = index * cardSpacing;
 
-        // Scrolling motion for the entire scene duration
-        // We calculate total travel based on number of cards to make it consistent
-        const totalTravel = categories.length * cardSpacing * 0.2; // Slower scroll for 75 frames
-        const scrollProgress = interpolate(frame, [0, durationInFrames], [0, totalTravel], {
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-            extrapolateRight: "clamp",
-        });
+        // Calculate position with wrapping for infinite loop effect
+        let rawX = basePosition - scrollProgress;
 
-        const x = scrollProgress + basePosition - 800;
+        // Wrap the position to create infinite carousel loop
+        // Cards that go off the left side reappear on the right
+        const wrapOffset = totalCarouselWidth;
+        rawX = ((rawX % wrapOffset) + wrapOffset) % wrapOffset;
+
+        // Offset to center the carousel
+        const x = rawX - cardSpacing + width / 2 - totalCarouselWidth / 2 + cardSpacing * 2;
 
         const centerX = width / 2;
         const distanceFromCenter = (x - centerX) / (width * 0.4);
@@ -98,11 +119,12 @@ export const Scene3UICarousel: React.FC = () => {
         const blurAmount = interpolate(Math.abs(distanceFromCenter), [0, 1], [0, 4]);
         const isInFocus = Math.abs(distanceFromCenter) < 0.3;
 
-        if (edgeFade <= 0.01) return null;
+        // Hide cards that are way off screen
+        if (edgeFade <= 0.01 || x < -400 || x > width + 400) return null;
 
         return (
             <div
-                key={index}
+                key={`${index}-${Math.floor(scrollProgress / wrapOffset)}`}
                 style={{
                     position: "absolute",
                     left: x,
@@ -112,6 +134,7 @@ export const Scene3UICarousel: React.FC = () => {
                     transformStyle: "preserve-3d",
                     zIndex: 2000 + Math.round((1 - Math.abs(distanceFromCenter)) * 100),
                     filter: isInFocus ? "none" : `blur(${blurAmount}px)`,
+                    transition: "filter 0.1s ease-out",
                 }}
             >
                 <div

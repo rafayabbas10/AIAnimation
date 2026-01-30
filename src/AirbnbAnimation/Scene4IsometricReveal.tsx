@@ -35,13 +35,20 @@ export const Scene4IsometricReveal: React.FC = () => {
         extrapolateRight: "clamp",
     });
 
-    // UI Tags Entry (Frames 50-80, staggered) - BIGGER PINS
+    // UI Tags Entry (Frames 15-75, staggered) - BIGGER PINS with smooth animation
     const renderUITag = (tag: UITag, index: number) => {
-        const entryFrame = 50 + index * 10;
+        // Earlier entry: start at frame 15 with 15 frame stagger between each tag
+        const entryFrame = 15 + index * 15;
+
+        // Softer spring for smoother, more polished feel
         const tagEntry = spring({
             frame: frame - entryFrame,
             fps,
-            config: { damping: 12, stiffness: 100 },
+            config: {
+                damping: 18,
+                stiffness: 60,
+                mass: 1.2,
+            },
         });
 
         const tagScale = interpolate(tagEntry, [0, 1], [0, 1], {
@@ -49,11 +56,34 @@ export const Scene4IsometricReveal: React.FC = () => {
             extrapolateRight: "clamp",
         });
 
-        // Orbital motion
+        // Speed ramp orbital motion: slows down around frame 154, speeds up towards end
+        // Instead of multiplying by speed, we use accumulated progress (integral of speed curve)
+        // This ensures the orbit always moves forward, just at varying rates
+
+        // Map frame to accumulated orbital progress (0 to 1 represents full travel)
+        // The derivative of this curve represents speed - slower sections = flatter curve
+        const accumulatedProgress = interpolate(
+            frame,
+            [0, 100, 140, 154, 170, 200, 240],
+            [0, 0.35, 0.45, 0.48, 0.52, 0.7, 1.0], // Flat section around 154 = slow movement
+            {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+            }
+        );
+
+        const baseOrbitSpeed = tag.orbitSpeed * Math.PI * 2;
+
+        // Angular offset for each tag - distribute evenly around the orbit
+        // 4 tags = 90° (π/2) apart from each other
+        const angularOffset = (index / uiTags.length) * Math.PI * 2;
+
+        // Calculate orbit angle: use accumulated progress for speed ramp effect
+        // Add angular offset so each tag starts at a different position
         const orbitAngle =
             frame >= entryFrame
-                ? ((frame - entryFrame) / 60) * tag.orbitSpeed * Math.PI * 2
-                : 0;
+                ? accumulatedProgress * baseOrbitSpeed * 0.5 + angularOffset
+                : angularOffset; // Start at offset position even before animation
 
         const tagX = width / 2 + Math.cos(orbitAngle) * tag.orbitRadius;
         const tagY = height / 2 + Math.sin(orbitAngle) * tag.orbitRadius * 0.5 + tag.yOffset;
@@ -68,7 +98,7 @@ export const Scene4IsometricReveal: React.FC = () => {
                     position: "absolute",
                     left: tagX,
                     top: tagY,
-                    transform: `translate(-50%, -50%) scale(${tagScale * pulse})`,
+                    transform: `translate(-50%, -220%) scale(${tagScale * pulse})`,
                     zIndex: 100,
                 }}
             >
@@ -125,19 +155,39 @@ export const Scene4IsometricReveal: React.FC = () => {
         );
     };
 
-    // Transition to Scene 5 (Frames 150-180)
-    const liquidStart = 150;
-    const liquidExplosion =
-        frame >= liquidStart
-            ? interpolate(frame, [liquidStart, liquidStart + 20], [0, 1], {
-                easing: Easing.out(Easing.exp),
+    // Floating house animation - very slow and subtle movement
+    const floatY = Math.sin((frame / 120) * Math.PI * 2) * 5;
+    const floatRotate = Math.sin((frame / 180) * Math.PI * 2) * 0.5;
+    const floatScale = 1 + Math.sin((frame / 150) * Math.PI * 2) * 0.008;
+
+    // Dynamic shadow that responds to floating - subtle
+    const shadowBlur = 35 + Math.sin((frame / 120) * Math.PI * 2) * 5;
+    const shadowY = 25 + Math.sin((frame / 120) * Math.PI * 2) * 3;
+    const shadowOpacity = 0.2 - Math.sin((frame / 120) * Math.PI * 2) * 0.02;
+
+    // Transition to Scene 5 - 3D Camera Zoom effect
+    const transitionStart = 200;
+    const transitionProgress =
+        frame >= transitionStart
+            ? interpolate(frame, [transitionStart, transitionStart + 40], [0, 1], {
+                easing: Easing.inOut(Easing.cubic),
+                extrapolateRight: "clamp",
             })
             : 0;
 
-    const sceneFade =
-        frame >= liquidStart + 10
-            ? interpolate(frame, [liquidStart + 10, liquidStart + 30], [1, 0])
-            : 1;
+    // 3D camera zoom - scale up and slight perspective shift
+    const cameraZoom = interpolate(transitionProgress, [0, 1], [1, 3], {
+        extrapolateRight: "clamp",
+    });
+
+    const cameraY = interpolate(transitionProgress, [0, 1], [0, -200], {
+        extrapolateRight: "clamp",
+    });
+
+    const sceneFade = interpolate(transitionProgress, [0.6, 1], [1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+    });
 
     return (
         <AbsoluteFill
@@ -145,45 +195,36 @@ export const Scene4IsometricReveal: React.FC = () => {
                 background: "linear-gradient(135deg, #F7F7F7 0%, #FFFFFF 100%)",
             }}
         >
-            <div style={{ opacity: sceneFade }}>
-                {/* Realistic House Asset on Island */}
+            <div
+                style={{
+                    opacity: sceneFade,
+                    transform: `scale(${cameraZoom}) translateY(${cameraY}px)`,
+                    transformOrigin: "center center",
+                }}
+            >
+                {/* House Image - centered */}
                 <div
                     style={{
                         position: "absolute",
                         left: "50%",
                         top: "50%",
-                        transform: `translate(-50%, -50%) scale(${transformProgress})`,
-                        width: 700,
-                        height: 700,
+                        transform: `translate(-50%, -5%) scale(${transformProgress})`,
+                        width: 1000,
+                        height: 1000,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                     }}
                 >
-                    {/* The "Island" Base */}
-                    <div
-                        style={{
-                            position: "absolute",
-                            bottom: 150,
-                            width: 600,
-                            height: 250,
-                            background: "radial-gradient(ellipse at center, #8EB859 0%, #6E9E44 70%, transparent 100%)",
-                            borderRadius: "50%",
-                            transform: "rotateX(60deg)",
-                            boxShadow: "0 40px 100px rgba(0,0,0,0.15)",
-                            opacity: transformProgress,
-                        }}
-                    />
-
-                    {/* The House Image */}
+                    {/* The House Image with subtle floating animation */}
                     <Img
                         src={staticFile("assets/house.png")}
                         style={{
                             width: "85%",
                             height: "auto",
                             zIndex: 10,
-                            filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.2))",
-                            transform: "translateY(-40px)",
+                            filter: `drop-shadow(0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity}))`,
+                            transform: `translateY(${floatY}px) rotate(${floatRotate}deg) scale(${floatScale})`,
                         }}
                     />
                 </div>
@@ -194,41 +235,23 @@ export const Scene4IsometricReveal: React.FC = () => {
                 </AbsoluteFill>
             </div>
 
-            {/* Liquid Explosion Effect */}
-            {liquidExplosion > 0 && (
-                <AbsoluteFill style={{ pointerEvents: "none" }}>
-                    {[...Array(8)].map((_, i) => {
-                        const angle = (i / 8) * Math.PI * 2;
-                        const distance = liquidExplosion * 400;
-                        const x = width / 2 + Math.cos(angle) * distance;
-                        const y = height / 2 + Math.sin(angle) * distance;
-                        const rotation = angle * (180 / Math.PI) + liquidExplosion * 360;
+            {/* 3D Wipe transition overlay - smooth white fade */}
+            <AbsoluteFill
+                style={{
+                    background: `radial-gradient(circle at center, transparent ${(1 - transitionProgress) * 100}%, white ${(1 - transitionProgress) * 100 + 20}%)`,
+                    opacity: transitionProgress > 0 ? 1 : 0,
+                    pointerEvents: "none",
+                }}
+            />
 
-                        return (
-                            <div
-                                key={i}
-                                style={{
-                                    position: "absolute",
-                                    left: x,
-                                    top: y,
-                                    transform: `translate(-50%, -50%) scale(${liquidExplosion * 2}) rotate(${rotation}deg)`,
-                                    width: 100,
-                                    height: 100,
-                                    backgroundColor: "#FF5A5F",
-                                    borderRadius: "50% 40% 60% 50%",
-                                    opacity: 1 - liquidExplosion * 0.5,
-                                }}
-                            />
-                        );
-                    })}
-                </AbsoluteFill>
-            )}
-
-            {/* White fade */}
+            {/* Final white fade for clean transition */}
             <AbsoluteFill
                 style={{
                     backgroundColor: "white",
-                    opacity: liquidExplosion > 0.7 ? (liquidExplosion - 0.7) / 0.3 : 0,
+                    opacity: interpolate(transitionProgress, [0.7, 1], [0, 1], {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                    }),
                     pointerEvents: "none",
                 }}
             />
